@@ -1,16 +1,16 @@
 
-# ***Anon-scripts v4.0.0***
+# ***Tunnels-scripts v4.0.0***
 
-**-> Make Linux Truly anonymous with some user-friendly scripts <-**
-
+**-> Make Linux Truly anonymous and other stuff with some user-friendly scripts <-**
+**note: this scripts are included builtin in my custom private operating system based in Arch Linux, see more info: https://github.com/strxint/tunnels-release**
 
 ## ***Features***
 
-- Anonymous Protocols: Tor, i2pd.
-- Secured configuration files: torrc, jupiter.nft.
-- Modern firewall: nftables.
-- MAC and interfaces script: saturn.
-- Boot services for: systemd, runit, open-rc.
+- Protocols: Tor, i2pd.
+- Secure configuration: torrc, archnon.nft.
+- Firewall: nftables.
+- MACs script: saturn.
+- Boot services: systemd, runit, open-rc.
 - User friendly scripts.
 - Easy to mount and use.
 - 100% bash code.
@@ -27,20 +27,20 @@
 
 - Firewall is root only, same with services.
 - Scripts will not support s6 for boot services.
-- Get my personal stuff like .zshrc, .shrc, here: https://github.com/strxint/anon-config
+- Get my personal stuff like .zshrc, .shrc, here: https://github.com/strxint/tunnels-files
 
 ## ***Installation***
 
 Clone repo
 
 ```bash
-  git clone https://github.com/strxint/anon-scripts
+  git clone https://github.com/strxint/tunnels-scripts
 ```
 
 Get inside folder
 
 ```bash
-  cd anon-scripts
+  cd tunnels-scripts
 ```
 
 Ensure root and exec permissions
@@ -52,16 +52,16 @@ Ensure root and exec permissions
 Run any script as root
 
 ```bash
-  sudo ./jupiter || doas ./jupiter
+  sudo ./archnon || doas ./archnon
 ```
 
 
-## ***Screenshots & Demo***
+## ***Preview & Demo***
 
-![App Screenshot](https://github.com/strxint/anon-scripts/blob/main/jupiter3.png)
-![App Screenshot](https://github.com/strxint/anon-scripts/blob/main/jupiter4.png)
-![App Screenshot](https://github.com/strxint/anon-scripts/blob/main/jupiter.png)
-![App Screenshot](https://github.com/strxint/anon-scripts/blob/main/jupiter2.png)
+![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/jupiter3.png)
+![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/jupiter4.png)
+![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/jupiter.png)
+![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/jupiter2.png)
 
 ## ***License***
 [![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/licenses/) 
