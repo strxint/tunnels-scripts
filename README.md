@@ -58,10 +58,10 @@ Run any script as root
 
 ## ***Preview & Demo***
 
-![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/jupiter3.png)
-![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/jupiter4.png)
-![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/jupiter.png)
-![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/jupiter2.png)
+![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/demo.png)
+![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/demo1.png)
+![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/demo2.png)
+![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/demo3.png)
 
 ## ***License***
 [![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/licenses/) 
