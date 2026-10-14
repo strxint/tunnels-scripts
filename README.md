@@ -2,7 +2,7 @@
 # ***Tunnels-scripts v4.0.0***
 
 **-> Make Linux Truly anonymous and other stuff with some user-friendly scripts <-**
-**note: this scripts are included builtin in my custom private operating system based in Arch Linux, see more info: https://github.com/strxint/tunnels-release**
+**note: this scripts are included builtin in my custom private operating system based in Arch Linux, get the image here: https://github.com/strxint/tunnels-release**
 
 ## ***Features***
 
