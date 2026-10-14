@@ -1,0 +1,123 @@
+#!/bin/bash
+
+ALGORITHM=base64
+INTERACTIVE="yes"
+SHOW_HASH="yes"
+
+trap 'echo -e "\n\n\e[91mCancelled by user\e[0m\n" && exit $?' 'SIGINT'
+
+decrypt() {
+
+  echo -e "\n\e\e[94m[\e[97m*\e[94m]\e[97m Encryption Algorithm:\e[93m $ALGORITHM\e[0m\n"
+
+  if [[ "$INTERACTIVE" == "yes" ]]; then
+
+    read -e -p $'\n\e[93m[\e[97m!\e[93m]\e[97m Input hash:\e[95m ' W $W
+
+    if [[ -z "$W" ]]; then
+      echo -e "\n\e[91mForgot the input hash!\e[0m\n"
+      exit 1
+    fi
+
+  else
+
+    if [[ -z "$W" ]]; then
+      echo -e "\n\e[91mForgot the input hash!\n"
+      exit 1
+    fi
+
+  fi
+
+  print_h() {
+
+    if [[ -f "$W" ]]; then
+      WORD_FILE="yes"
+      echo -e "\n\e[92m[\e[97m+\e[92m]\e[97m Output string: \e[96m$($ALGORITHM -d $W)\e[0m\n"
+
+    else
+      echo -e "\n\e[92m[\e[97m+\e[92m]\e[97m Output string: \e[96m$(echo $W | $ALGORITHM -d)\e[0m\n"
+    fi
+
+  }
+
+  [[ -f "$W" ]] && WORD_FILE="yes"
+
+  if [[ "$SET_OUTPUT" == "yes" ]]; then
+    SHOW_HASH="no"
+    if [[ "$WORD_FILE" == "yes" ]]; then
+      cat "$W" | "$ALGORITHM" -d | tee "$OUTPUT" >/dev/null 2>&1 && echo -e "\n\e[92m[\e[97m+\e[92m]\e[97m Wrote output to file \e[93m'$OUTPUT'\e[0m\n" || echo -e "\n\e[91mBad path \e[93m'$OUTPUT'\e[0m\n"
+    else
+      echo "$W" | "$ALGORITHM" -d | tee "$OUTPUT" >/dev/null 2>&1 && echo -e "\n\e[92m[\e[97m+\e[92m]\e[97m Wrote output to file \e[93m'$OUTPUT'\e[0m\n" || echo -e "\n\e[91mBad path \e[93m'$OUTPUT'\e[0m\n"
+    fi
+  fi
+
+  if [[ "$SHOW_HASH" == "yes" ]]; then
+    print_h
+  fi
+
+}
+
+if [[ $# -gt 0 ]]; then
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --algorithm | -a)
+      ALGORITHM=$2
+
+      if [[ -z "$ALGORITHM" ]]; then
+        echo -e "\n\e[91musage: \e[93m$0 -A <algorithm>\e[0m\n"
+        exit 1
+      elif ! command -v $ALGORITHM >/dev/null 2>&1; then
+        echo -e "\n\e[91mcommand not found: \e[95m$ALGORITHM\e[0m\n"
+        exit 1
+      fi
+
+      shift 2
+      ;;
+    --input | -i)
+      W=$2
+      INTERACTIVE="no"
+
+      if [[ -z "$W" ]]; then
+        echo -e "\n\e[91musage: \e[93m$0 --input <file/string>\e[0m\n"
+        exit 1
+      fi
+
+      shift 2
+      ;;
+    --output | -o)
+      OUTPUT=$2
+      SET_OUTPUT="yes"
+
+      if [[ -z "$OUTPUT" ]]; then
+        echo -e "\n\e[91musage: \e[93m$0 --output <file>\e[0m\n"
+        exit 1
+      fi
+      shift 2
+      ;;
+    --help | -h)
+      echo -e "\n\e[93musage: \e[92m$0 \e[93m[\e[97mOPTION\e[93m]
+  
+  \e[97moptions:
+        \e[94m--algorithm\e[97m|\e[94m-A\e[97m: Use an specific binary/algorithm, e.g 'base64'.\e[0m
+        \e[94m--input\e[97m|\e[94m-I\e[97m: Parse an specific string or file, e.g 'hello world' or '/path/to/file'.\e[0m
+        \e[94m--output\e[97m|\e[94m-O\e[97m: Write the hash to an specific file.\e[0m
+        \e[94m--help\e[97m|\e[94m-h\e[97m: Print manual and exit.\e[0m
+        
+        \e[93mnote: \e[97mscript only supports base32, base64.
+  \e[0m\n"
+
+      shift 1
+      exit $?
+
+      ;;
+    *)
+      echo -e "\n\e[91m[\e[97m-\e[91m] Invalid option \e[93m'$1'\e[91m, try \e[93m'$0 --help'\e[0m\n"
+      shift 1
+      exit 1
+      ;;
+    esac
+  done
+  decrypt
+else
+  decrypt
+fi
