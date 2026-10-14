@@ -1,0 +1,570 @@
+#!/bin/bash
+
+#####################################################################################
+#                                                                                   #
+# TunnelsOS Official Installer // Developed by: archnon@protonmail.com (@strxint)   #
+# Official repo: https://github.com/strxint/tunnels-scripts.                        #
+# Copyright (c) 2026 archnon@protonmail.com. All Rights Reserved.                   #
+#                                                                                   #
+#####################################################################################
+
+trap 'echo -e "\n\n\e[91m[\e[97m-\e[91m] \e[91mInstallation cancelled\e[0m\n";exit $?' 'SIGINT'
+
+################### VERSION #######################
+VERSION='v2.0.0'
+COPYRIGHT='Copyright (c) 2026 archnon@protonmail.com. All Rights Reserved.'
+REPO='https://github.com/strxint/tunnels-scripts'
+
+BS="4M"      # This sets the default buffer-size for dd command on sys installations
+LABEL_ROOT="TUN-ROOT" # This sets the default LABEL for the ROOT partition on the target disk.
+LABEL_BOOT="TUN-BOOT" # This sets the default LABEL for the BOOT partition on the target disk.
+FRIENDLY="yes" # This makes the questions mode the default way to perform system installation.
+SCRIPTS="yes" # This only ensures that all builtin scripts like the installer are available on the new ROOT fs.
+ASK="yes" # Prevents to wipe a disk by mistake (warn).
+VERBOSE="no" # This doesnt make the installer show a verbose output from the commands it launch.
+
+usage() {
+  echo -e "\n\e[93musage:\e[92m tun-installer \e[97m[-n OPTIONs] <MEDIA/DEVICE/img> <OUTPUT/DEVICE>\e[0m
+	
+\e[93mOPTIONS:\e[0m
+
+	\e[94m--interactive|-i:\e[97m Tell installer load the question mode (interactive), (default: $FRIENDLY).\e[0m
+        \e[94m--no-interactive|-n:\e[97m Tell installer not load interactive mode (questions).\e[0m
+
+	\e[94m--media|-m \e[0m<\e[98mDEVICE/img\e[0m>:\e[97m Set the media device or img to use.\e[0m
+        \e[94m--output|-o \e[0m<\e[98mDEVICE/img\e[0m>:\e[97m Set the target device or img.\e[0m
+
+	\e[94m--labels|-l \e[0m<\e[98mLABEL\e[0m> \e[0m:\e[97m Set a custom label for ROOT and BOOT device parts (default: TUN-ROOT).\e[0m
+	\e[94m--copy-scripts|-C:\e[97m Force copy tunnels scripts to new ROOT (default: $SCRIPTS).\e[0
+	\e[94m--force-yes|-y:\e[97m Force the system installation (dang).\e[0m
+	\e[94m--ask|-A:\e[97m Force installer to ask before start (default: $ASK).\e[0m
+	\e[94m--verbose|-v:\e[97m Show detailed output during process (default: $VERBOSE).\e[0m
+	
+	\e[94m--help|-h:\e[97m Print manual and exit.\e[0m
+	\e[94m--version|-V:\e[97m Print vesrion and exit.\e[0m
+	\e[94m--config-file|-f:\e[97m Source a configuration file (you must set variables), see \e[93m'tun-installer --config-example'\e[97m for detailed info.\e[0m
+	\e[94m--config-example|-e:\e[97m Print example configuration and exit.\e[0m
+
+	\e[97mDeveloped by:\e[95m archnon@protonmail.com\e[97m,\e[95m stxint \e[0m
+	\e[93mnote: \e[97mTo update this script you'll have to clone the github repo again.\e[0m
+	\e[93mnote: \e[97mcommand \e[92m'git clone https://github.com/strxint/tunnels-scripts'\e[0m\n"
+
+  exit $?
+}
+
+version() {
+  echo -e "\nVersion: $VERSION\nCopyright: $COPYRIGHT\nGit repo: $REPO\n"
+  exit $?
+}
+
+config_ex() {
+
+  echo -e "\n\e[95mExample configuration for Tun-Installer:\e[0m
+	
+\e[92mSave as: config.tun\e[0m
+
+	\e[98m#!/usr/bin/tun-installer\e[0m
+	\e[94mLABEL_ROOT\e[0m=\e[93m'$LABEL_ROOT'\e[0m
+	\e[94mFRIENDLY\e[0m=\e[93m'$FRIENDLY'\e[0m
+	\e[94mMEDIA\e[0m=\e[93m'/dev/sda'\e[0m
+	\e[94mTARGET\e[0m=\e[93m'/dev/sdb'\e[0m
+	\e[94mVERBOSE\e[0m=\e[93m'$VERBOSE'\e[0m
+
+\e[96mSyntax:\e[97m VAR=<key>\e[0m\n"
+
+  exit $?
+
+}
+
+chsize() {
+  if [[ -z "$NEW_SIZE" ]]; then
+    echo -e "\n\e[91m[\e[97m-\e[91m] \e[93mnote:\e[91m tun-installer --count <SIZE> \e[0m\n"
+    exit 1
+  else
+    COUNT=$NEW_SIZE
+  fi
+}
+
+chmedia() {
+  if [ -z "$NEW_MEDIA" ]; then
+    echo -e "\n\e[91m[\e[97m-\e[91m] \e[93mnote:\e[91m tun-installer --media <DEVICE/img> \e[0m\n"
+    exit 1
+  else
+    MEDIA=$NEW_MEDIA
+  fi
+}
+
+chtarget() {
+  if [ -z "$NEW_TARGET" ]; then
+    echo -e "\n\e[91m[\e[97m-\e[91m] \e[93mnote:\e[91m tun-installer --target <DEVICE/img> \e[0m\n"
+    exit 1
+  else
+    TARGET=$NEW_TARGET
+  fi
+}
+
+chlabels() {
+  if [ -z "$NEW_LABEL_ROOT" ]; then
+    echo -e "\n\e[91m[\e[97m-\e[91m] \e[93mnote:\e[91m tun-installer --labels <LABEL>\e[0m\n"
+    exit 1
+  else
+    LABEL_ROOT="$NEW_LABEL_ROOT"
+  fi
+}
+
+chbs() {
+  if [ -z "$NEW_BS" ]; then
+    echo -e "\n\e[91m[\e[97m-\e[91m]\e[93m note:\e[91m tun-installer --buffer-size <SIZE>"
+    exit 1
+  else
+    BS=$NEW_BS
+  fi
+}
+
+banner() {
+
+  echo -e "\n\e[91m  -==========================================-\n[\e[92m           Tunnels Installer script           \e[91m]\n  -==========================================-  \e[0m"
+
+}
+banner
+
+#### Just a function that fixes part labels
+
+fixlabels() {
+
+  #### UEFI grub
+
+  cat <<EOT >/mnt/etc/default/grub
+GRUB_TIMEOUT=30
+GRUB_DISABLE_SUBMENU=y
+GRUB_DISABLE_RECOVERY=true
+GRUB_CMDLINE_LINUX_DEFAULT="modules=sd-mod,usb-storage,ext4 quiet splash fastboot nomodeset fsck.mode=skip rootfstype=ext4 rw"
+GRUB_CMDLINE_LINUX="root=LABEL=$LABEL_ROOT"
+GRUB_DISABLE_LINUX_UUID=true
+EOT
+
+  #### BIOS syslinux
+
+  cat <<EOT >/mnt/boot/syslinux/syslinux.cfg
+DEFAULT tunnels-legacy
+TIMEOUT 300
+UI vesamenu.c32
+
+MENU COLOR background 0 #00000000 #333333 std
+MENU COLOR screen 0 #00000000 #333333 std
+
+LABEL tunnels-gpu
+    MENU LABEL Tunnels Graphics (GPU)
+    LINUX /boot/vmlinuz-linux-lts
+    INITRD /boot/initramfs-linux-lts.img
+    APPEND root=LABEL=$LABEL_ROOT rw loglevel=3 fastboot
+
+LABEL tunnels-legacy
+    MENU LABEL Tunnels Legacy (no GPU)
+    LINUX /boot/vmlinuz-linux-lts
+    INITRD /boot/initramfs-linux-lts.img
+    APPEND root=LABEL=$LABEL_ROOT rw nomodeset loglevel=3 fastboot
+EOT
+
+  #### fstab
+
+  cat <<EOT >/mnt/etc/fstab
+LABEL=$LABEL_ROOT      /       ext4    rw,relatime     0 0
+/dev/cdrom      /media/cdrom    iso9660 noauto,ro 0 0
+/dev/usbdisk    /media/usb      vfat    noauto  0 0
+tmpfs   /tmp    tmpfs   nosuid,nodev    0       0
+EOT
+
+  
+  if [ $SCRIPTS == "yes" ]; then
+  	cp /usr/local/bin/* /mnt/usr/local/bin >/dev/null 2>&1  
+  fi
+
+}
+
+verbose_sysinstall() {
+
+  umount -l "$TARGET" >/dev/null 2>&1
+
+  OK="\e[94m[\e[92mOK\e[94m]\e[0m"
+  BAD="\e[94m[\e[91m!!\e[94m]\e[0m"
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mWiping old fs on \e[95m$TARGET ...\e[0m"
+  wipefs -fa $TARGET && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[97m!\e[94m] \e[97mWipe status: $code\e[0m"
+
+  sleep 2
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mCopying filesystem (this can take long) ...\e[0m"
+  dd if=$MEDIA of=$TARGET bs=$BS status=progress && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[97m!\e[94m] \e[97mFilesystem copy status: $code\e[0m"
+
+  sleep 2
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mSync disks [1/3] ...\e[0m"
+  
+  sync && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[97m!\e[94m] \e[97mSync disk status [1/3]: $code\e[0m"
+
+  sleep 2
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mWriting partition LABEL\e[0m"
+  e2label "$TARGET" "$LABEL_ROOT"
+  partprobe "$TARGET" && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mLabel write status: $code\e[0m"
+
+  sleep 1
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mWriting fstab ...\e[0m"
+
+  mount "$TARGET" /mnt
+  
+  fixlabels && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mWrite fstab status: $code\e[0m"
+
+  sleep 1
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mSync disks [3/3] ...\e[0m"
+  sync && code=$OK || code=$BAD
+  echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mSync disks status: $code\e[0m"
+
+  sleep 1
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mUmount & disk cleaning ...\e[0m"
+
+  umount -l "$TARGET" && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mUmount & clean status: $code\e[0m"
+
+  sleep 2
+
+  if ! [ $? == 0 ]; then
+    echo -e "\n\e[91m[\e[97m-\e[91m] \e[91mErrors ocurred, fix or try again: $? !!\e[0m\n"
+    exit 1
+  else
+    echo -e "\n\e[94m[\e[92m+\e[94m] \e[97mInstallation completed, reboot and unplug the USB/Media\e[0m\n"
+    exit 0
+  fi
+  echo -e "\n"
+
+}
+
+verbose_img_maker() {
+
+  OK="\e[94m[\e[92mOK\e[94m]\e[0m"
+  BAD="\e[94m[\e[92m!!\e[94m]\e[0m"
+
+  echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mChecking Path ...\e[0m"
+  sleep 2
+
+  if [[ -r "$MEDIA" ]]; then
+    echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mPath check status: $OK\e[0m"
+    sleep 2
+
+    echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mCreating initial file ...\e[0m"
+    sleep 2
+
+    if ! touch "$OUTPUT_FILE"; then
+      echo -e "\n\e[91m[\e[97m-\e[91m] \e[97mFailed to create the initial .img file\e[0m"
+      sleep 2
+      exit 1
+    else
+      echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mInitial file creation status: $OK\e[0m"
+      sleep 2
+    fi
+
+    echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mGenerating '\e[93m$OUTPUT_FILE\e[97m' ...\e[0m"
+    sleep 2
+
+    dd if="$MEDIA" of="$OUTPUT_FILE" bs=$BS status=progress && code="$OK" || code="$BAD"
+
+    echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mGenerate status: $OK\e[0m\n"
+
+  else
+    echo -e "\n\e[91m[\e[97m-\e[91m] \e[91mNo such device '$MEDIA'\e[0m\n"
+    exit 1
+  fi
+
+  exit $?
+
+}
+
+#### WE HAVE THE NORMAL INSTALL SYS, WHICH COPIES BYTE TO BYTE THE LIVE FS TO TARGET DISK ####
+
+install_sys() {
+
+  if [ "$VERBOSE" == "yes" ]; then
+    verbose_sysinstall
+  fi
+
+  # SEC Feature
+
+  umount -l "$TARGET" >/dev/null 2>&1
+
+  OK="\e[94m[\e[92mOK\e[94m]\e[0m"
+  BAD="\e[94m[\e[91m!!\e[94m]\e[0m"
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mWiping old fs on \e[95m$TARGET ...\e[0m"
+  wipefs -fa $TARGET >/dev/null 2>&1 && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[97m!\e[94m] \e[97mWipe status: $code\e[0m"
+
+  sleep 2
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mCopying filesystem (this can take long) ...\e[0m"
+  dd if=$MEDIA of=$TARGET bs=$BS status=progress && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[97m!\e[94m] \e[97mFilesystem copy status: $code\e[0m"
+
+  sleep 2
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mSync disks [1/3] ...\e[0m"
+  sync >/dev/null 2>&1 && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[97m!\e[94m] \e[97mSync disk status [1/3]: $code\e[0m"
+
+  sleep 2
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mWriting partition LABEL\e[0m"
+  e2label "$TARGET" "$LABEL_ROOT" >/dev/null 2>&1
+  partprobe "$TARGET" >/dev/null 2>&1 && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mLabel write status: $code\e[0m"
+
+  sleep 2
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mWriting fstab ...\e[0m"
+
+  mount "$TARGET" /mnt >/dev/null 2>&1
+ 
+  fixlabels >/dev/null 2>&1 && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mWrite fstab status: $code\e[0m"
+
+  sleep 2
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mSync disks [3/3] ...\e[0m"
+  sync >/dev/null 2>&1 && code=$OK || code=$BAD
+  echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mSync disks status: $code\e[0m"
+
+  sleep 2
+
+  echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mUmount & disk cleaning ...\e[0m"
+
+  umount -l "$TARGET" >/dev/null 2>&1 && code=$OK || code=$BAD
+
+  echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mUmount & clean status: $code\e[0m"
+
+  sleep 2
+
+  if ! [ $? == 0 ]; then
+    echo -e "\n\e[91m[\e[97m-\e[91m] \e[91mErrors ocurred, fix or try again: $? !!\e[0m\n"
+    exit 1
+  else
+    echo -e "\n\e[94m[\e[92m+\e[94m] \e[97mInstallation completed, reboot and unplug the USB/Media\e[0m\n"
+    exit 0
+  fi
+  echo -e "\n"
+}
+
+#### OR AN .img WRITER ####
+
+img_write() {
+
+  if [ "$VERBOSE" == "yes" ]; then
+    verbose_img_maker
+  fi
+
+  OK="\e[94m[\e[92mOK\e[94m]\e[0m"
+  BAD="\e[94m[\e[92m!!\e[94m]\e[0m"
+
+  echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mChecking Path ...\e[0m"
+  sleep 2
+
+  if [[ -r "$MEDIA" ]]; then
+    echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mPath check status: $OK\e[0m"
+    sleep 2
+
+    echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mCreating initial file ...\e[0m"
+    sleep 2
+
+    if ! touch "$OUTPUT_FILE" >/dev/null 2>&1; then
+      echo -e "\n\e[91m[\e[97m-\e[91m] \e[97mFailed to create the initial .img file\e[0m"
+      sleep 2
+      exit 1
+    else
+      echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mInitial file creation status: $OK\e[0m"
+      sleep 2
+    fi
+
+    echo -e "\n\e[94m[\e[93m!\e[94m] \e[97mGenerating '\e[93m$OUTPUT_FILE\e[97m' ...\e[0m"
+    sleep 2
+
+    dd if="$MEDIA" of="$OUTPUT_FILE" bs=$BS conv=fsync status=progress && code="$OK" || code="$BAD"
+
+    echo -e "\n\e[94m[\e[93m*\e[94m] \e[97mGenerate .img status: $OK\e[0m\n"
+
+  else
+    echo -e "\n\e[91m[\e[97m-\e[91m] \e[91mNo such device '$MEDIA'\e[0m\n"
+    exit 1
+  fi
+
+  exit $?
+}
+
+###### PROMPT QUESTIONS ######
+
+d_ask() {
+  echo -ne "\n"
+  lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,MOUNTPOINTS,LABEL,FSTYPE
+  read -e -p $'\n\e[97mEnter an \e[95mUSB/Drive \e[97mor an \e[95m.img\e[97m file => \e[0m' MEDIA $MEDIA
+
+  read -e -p $'\n\e[97mEnter the installation \e[96mdisk \e[97mor \e[96mname\e[97m for a new .img => \e[0m' TARGET $TARGET
+}
+
+ask_wipe() {
+  read -e -p $"$(echo -e "\n\e[93m[\e[97m!\e[93m] \e[91mAll data in \e[93m$TARGET\e[91m will be lost, \e[97mcontinue? (y|N)\e[97m => \e[0m")" RESPONSE $RESPONSE
+}
+
+d_eval() {
+
+  if [[ "$FRIENDLY" == "yes" ]]; then
+    d_ask
+  fi
+
+  ##### DECIDE IF SYSINSTALL OR img_MAKER #####
+
+  if [ -z "$MEDIA" ] && [ -z "$TARGET" ]; then
+    echo -e "\n\e[91m[\e[97m-\e[91m] Give at least one Media and one output\e[0m\n"
+    exit 1
+  fi
+
+  if [ -d "$MEDIA" ] || [ -d "$TARGET" ]; then
+    echo -e "\n\e[92m[\e[97m-\e[92m] \e[91mYou are trying to write a directory!\e[0m\n"
+    exit 1
+  fi
+
+  if [[ -r "$MEDIA" ]] && [[ -r "$TARGET" ]]; then # if both disks then sys install
+    sync >/dev/null 2>&1
+    umount -l "$TARGET" >/dev/null 2>&1
+
+    if [[ $ASK == "yes" ]]; then
+      ask_wipe
+    else
+      install_sys
+    fi
+
+  elif ! [[ -d "$MEDIA" ]] || ! [[ -r "$MEDIA" ]] && [[ -r "$TARGET" ]]; then # burn .img to target
+    OUTPUT_FILE="$TARGET"
+    img_write
+  elif [[ -r "$MEDIA" ]] && ! [[ -r "$TARGET" ]] || ! [[ -d "$TARGET" ]]; then # burn target input to .img
+    OUTPUT_FILE="$TARGET"
+    img_write
+  else
+    echo -e "\n\e[92m[\e[97m-\e[92m] \e[91mBad selection, check device list\e[0m"
+    exit 1
+  fi
+
+  ##### CONDITION ONLY AFFECTS SYS INSTALLATION ####
+
+  if [[ "$RESPONSE" == "yes" ]] || [[ "$RESPONSE" == "y" ]] || [[ "$RESPONSE" == "Y" ]]; then
+    install_sys
+  elif [[ "$RESPONSE" == "no" ]] || [[ "$RESPONSE" == "n" ]] || [[ "$RESPONSE" == "N" ]]; then
+    echo -e "\n\e[91mOperation cancelled\e[0m\n"
+    exit 0
+  elif [[ -z "$RESPONSE" ]]; then
+    echo -ne "\n"
+    exit 1
+  else
+    echo -e "\n\e[92m[\e[97m-\e[92m] \e[91mInvalid answer, try again\e[0m\n"
+    exit 1
+  fi
+
+}
+
+loadcfg() {
+  if [ -z "$CONFIG_FILE" ] || ! [ -f "$CONFIG_FILE" ]; then
+    echo -e "\n\e[91m[\e[97m-\e[91m]\e[93m note:\e[91m tun-installer --config-file <VALID_CONFIG>\n"
+    exit 1
+  else
+    source "$CONFIG_FILE"
+    d_eval
+  fi
+}
+
+##### OPTIONS #####
+
+if [[ $# -gt 0 ]]; then
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+     --media | -m)
+      NEW_MEDIA=$2
+      chmedia
+      shift 2
+      ;;
+    --output | -o)
+      NEW_TARGET=$2
+      chtarget
+      shift 2
+      ;;
+    --labels | -l)
+      NEW_LABEL_ROOT=$2
+      chlabels
+      shift 3
+      ;;
+    --no-interactive | -n)
+      FRIENDLY="no"
+      shift 1
+      ;;
+    --interactive | -i)
+      FRIENDLY="yes"
+      shift 1
+      ;;
+    --copy-scripts | -C)
+      SCRIPTS="yes"
+      shift 1
+      ;;
+    --force-yes | -y)
+      ASK="no"
+      shift 1
+      ;;
+    --ask | -A)
+      ASK="yes"
+      shift 1
+      ;;
+    --verbose | -v)
+      VERBOSE="yes"
+      shift 1
+      ;;
+    --config-file | -f)
+      CONFIG_FILE=$2
+      loadcfg
+      shift 2
+      ;;
+    --config-example | -e)
+      config_ex
+      shift 1
+      ;;
+    --version | -V)
+      version
+      shift 1
+      ;;
+    --help | -h)
+      usage
+      shift 1
+      ;;
+    --* | -* | *)
+      usage
+      shift 1
+      ;;
+    esac
+  done
+  d_eval
+else
+  d_eval
+fi

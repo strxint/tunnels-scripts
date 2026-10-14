@@ -1,0 +1,184 @@
+#!/bin/bash
+###############################################################
+#                                                             #
+# WIFI-CONNECT: KISS Tool to connect to wifi.                 #
+# By: archnon@protonmail.com                                  #
+#                                                             #
+###############################################################
+
+ORANGE="\e[38;5;214m"
+RED="\e[91m"
+GREEN="\e[92m"
+YELLOW="\e[93m"
+BLUE="\e[94m"
+P="\e[95m"
+LB="\e[96m"
+WHITE="\e[97m"
+NC="\e[0m"
+
+required(){
+
+if ! command -v nmcli >/dev/null 2>&1; then
+   echo -e "\n${RED}[${WHITE}x${RED}] Install networkmanager-cli${NC}"
+   exit 1
+fi
+
+if ! command -v ip >/dev/nul 2>&1; then
+   echo -e "\n${RED}[${WHITE}x${RED}] Install iproute2${NC}"
+   exit 1
+fi
+
+if ! command -v sysctl >/dev/null 2>&1; then
+   echo -e "\n${RED}[${WHITE}x${RED}] Install sysctl${NC}"
+   exit 1
+fi
+
+if ! $(command -v wpa_supplicant >/dev/null 2>&1 || command -v wpa_passphrase >/dev/null 2>&1); then
+   echo -e "\n${RED}[${WHITE}x${RED}] Install wpa_supplicant${NC}"
+   exit 1
+fi
+
+}
+required
+
+rfkill unblock wifi >/dev/null 2>&1
+nmcli radio wifi on >/dev/null 2>&1
+
+check_dev(){
+
+   if ! ip link show "$NIC" >/dev/null 2>&1; then
+      echo -e "\n${RED}[${WHITE}x${RED}] Invalid iface${NC}"
+      exit 1
+   fi
+
+   if [ "$EUID" -eq 0 ]; then
+       ip link set "$NIC" up >/dev/null 2>&1
+   fi
+
+}
+
+conn() {
+   echo -ne "\n"
+
+   WPACONF=/etc/wpa_supplicant/wpa_supplicant.conf
+   NET=/etc/network/interfaces
+
+   OK="\e[94m[\e[92mOK\e[94m]\e[0m"
+   BAD="\e[94m[\e[91m!!\e[94m]\e[0m"
+
+   echo -e "\n${GREEN}Creating cfg for wpa_supplicant ...${NC}"
+   wpa_passphrase "$AP" "$PASSWD" >> "$WPACONF" && CODE=$OK || CODE=$BAD
+   echo -e "\n\e[97mWPA Config: $CODE\e[0m" 
+
+   sleep 1
+
+   echo -e "\n${GREEN}Connecting to '$AP' ...${NC}"
+   nmcli dev wifi connect "$AP" password "$PASSWD" ifname "$NIC" >/dev/null 2>&1 && CODE=$OK || CODE=$BAD
+   echo -e "\n\e[97mConnection with AP ($AP): $CODE\e[0m"
+
+   sleep 1
+
+   echo -ne "\n"
+
+}
+
+usage(){
+echo "
+usage: $0 [COMMAND] [OPTION] [PARAMS]
+
+  Available commands:
+
+    --connection-delete <connection>: Delete a connection by name.
+    --connect <NIC> <AP> <PASSWD>: Connect to wifi.
+    --connection-list: Show connections list.
+    --help: Show manual.
+
+Developed by: archnon@protonmail, @strxint.
+Description: system wifi connection tool.	    
+"
+exit 1
+}
+
+option=$1
+
+while [ $# -gt 0 ]; do
+	case $option in
+	--connection-delete)
+	mode=1
+	
+	connection_name=$2
+
+	if [ -z "$connection_name" ]; then
+	    echo -e "\n${ORANGE}usage: ${GREEN}wifi --connection-delete ${YELLOW}<${NC}connection${YELLOW}>${NC}"
+	    exit 1
+	else
+		if ! nmcli connection show | grep "$connection_name" >/dev/null 2>&1; then
+		   echo -e "\n${RED}[${WHITE}x${RED}] Invalid connection${NC}"
+		   exit 1
+		fi
+		    
+		nmcli delete connection " $connection_name" >/dev/null 2>&1 && echo -e "\n${BLUE}[${LB}OK${BLUE}]${P} Deleted: ${ORANGE}'$connection_name'${NC}" || echo -e "\n${RED}[${WHITE}x${RED}] Delete error: ${ORANGE}'$connection_name'${NC}"
+	fi
+
+	shift
+	break
+
+	;;
+
+	--connect)
+	mode=2
+	
+	NIC=$2
+	AP=$3
+	PASSWD=$4
+
+	if [[ -z "$NIC" || -z "$AP" ]]; then
+		echo -e "\n${ORANGE}usage: ${GREEN}wifi --connect ${YELLOW}<${NC}NIC${YELLOW}> <${NC}AP${YELLOW}> <${NC}PASSWD${YELLOW}>${NC}"
+	    exit 1
+
+	else
+		if check_dev; then
+                   conn
+	        fi
+        fi
+
+        shift
+        break
+
+	;;
+
+        --connection-list)
+	mode=4
+	nmcli connection | sort
+
+	shift
+	break
+
+	;;
+
+	--help)
+	mode=6
+	
+	usage
+
+	shift
+	break
+	
+	;;
+
+	--*|-*|*)
+	mode=7
+
+	usage
+
+	shift
+	break
+
+	;;
+
+	esac
+done
+
+if [ -z "$mode" ]; then
+    usage
+fi

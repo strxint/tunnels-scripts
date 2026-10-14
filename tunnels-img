@@ -1,0 +1,186 @@
+#!/bin/bash
+
+#################################################################################
+#                                                                               #
+#             TunnelsOS's Custom media writer script                            #
+#                                                                               #
+#             By: archnon@protonmail, @strxint                                  #
+#             Git: https://github.com/strxint/tunnels-scritps			#
+#                                                                               #
+#################################################################################
+###################################################################
+# Copyright (c) 2026 archnon@protonmail.com. All Rights Reserved. #
+###################################################################
+
+VERSION=v1.0.0
+REPO=https://github.com/strxint/tunnels-scripts
+RIGHTS='Copyright (c) 2026 archnon@protonmail.com. All Rights Reserved.'
+AUTHORS=( '@strxint' 'archnon@protonmail.com' )
+
+# Env
+VERBOSE="no"
+ERRNO=$?
+
+# Func
+function quiet(){
+>/dev/null 2>&1
+}
+
+function stdout(){
+>/dev/stdout
+}
+
+function generate(){
+
+	if [[ -z "$DEVICE" ]] || [[ -z "$OUTPUT" ]]; then
+	    echo -e "\n\e[91m[\e[97m-\e[91m] Error:\e[97m Provide the \e[93m'--device'\e[97m and \e[93m'--output' \e[97moptions before.\e[0m\n"
+	    exit 1
+	fi
+
+	if [[ "$VERBOSE" == "no" ]]; then
+		REDIRECT=quiet
+
+	else
+		REDIRECT=stdout
+	fi
+
+	sleep 2
+
+	echo -e "\n\e[95m[\e[93m!\e[95m]\e[97m Image creation in course ...\e[0m\n"
+	
+	if ! touch "$OUTPUT" | $REDIRECT; then
+		echo -e "\n\e[91m[\e[97m-\e[91m] Error: Failed to create file \e[93m'$OUTPUT'\e[0m\n"
+		exit 1
+	fi
+
+	echo -ne "\e[96m==>\e[0m $(ls $OUTPUT)\e[0m\n"
+
+	sleep 2
+
+	echo -e "\n\e[95m[\e[93m!\e[95m]\e[97m Image Generation status ...\e[0m\n"
+
+	dd if=$DEVICE of=$OUTPUT status=progress conv=fsync
+
+	sleep 2
+
+	if [[ "$ERRNO" -ne 0 ]]; then
+		echo -e "\n\e[91m[\e[97m-\e[91m] Error: Unexcepted, try again\e[0m\n"
+		exit $?
+	else
+		echo -e "\n\e[96m[\e[97m+\e[96m]\e[97m Process exited with no errors\e[0m\n"
+		exit $?
+	fi
+
+}
+
+function write(){
+
+	if [[ -z "$IMAGE" ]] || [[ -z "$DEVICE" ]]; then
+		echo -e "\n\e[91m[\e[97m-\e[91m] Error: \e[97mProvide the \e[93m'--image'\e[97m and \e[93m'--device'\e[97m options before.\n"
+		exit 1
+	fi
+	
+	sleep 2
+
+	echo -e "\n\e[95m[\e[93m!\e[95m]\e[97m Burn process has been started ...\e[0m\n"
+	dd if=$IMAGE of=$DEVICE status=progress conv=fsync
+
+	sleep 2
+
+	echo -e "\n\e[95m[\e[93m!\e[95m]\e[97m Sync partitions ...\e[0m\n"
+	
+	sync
+
+	sleep 2
+
+	if [[ "$ERRNO" -ne 0 ]]; then
+	    echo -e "\n\e[91m[\e[97m-\e[91m] Error: Unexcepted, try again\e[0m\n"
+	    exit $?
+    	else
+	    echo -e "\n\e[96m[\e[97m+\e[96m]\e[97m Process exited with no errors.\e[0m\n"
+	    exit $?
+	fi
+}
+
+function manual(){
+echo -ne "\n\e[93musage: \e[97m$0 \e[93m[\e[97mOPTIONS\e[93m] [\e[97mMODE\e[93m]\e[0m
+	
+	\e[94m[ \e[96mMODES \e[94m]\e[0m
+
+		\e[94m--generate|-G:\e[97m Load the the img generator, create custom disk images (.img) easly.
+		\e[94m--write|-W:\e[97m Load the write mode, which writes disk images to an specific device.
+		
+	\e[94m[ \e[96mOPTIONS \e[94m]\e[0m
+
+		\e[94m--device <dev>:\e[97m Use an specific device for gen/write.
+		\e[94m--output <out>: \e[97m Write the content to specific file.
+		\e[94m--image <img>:\e[97m Use an specific disk image for write.
+		
+		\e[94m--verbose:\e[97m Show verbose output during the process.
+
+		\e[94m--help:\e[97m Print manual & exit.
+		\e[94m--version:\e[97m Print script version & exit.
+		\e[0m\n"
+exit $?
+}
+
+function version(){
+echo -e "\n\e[96mVERSION: \e[93m$VERSION\e[0m\n\e[96mGIT INFO: \e[93m$REPO\e[0m\n\e[96mCOPYRIGHT:\e[93m $RIGHTS\e[0m\n\e[96mAUTHORS: \e[93m${AUTHORS[@]}\n"
+exit $?
+}
+
+# Args
+
+if [[ $# -gt 0 ]]; then
+while [[ $# -gt 0 ]]; do
+	case $1 in
+		--generate|-G)
+		generate
+		shift 1
+		;;
+		--write|-W)
+		write
+		shift 1
+		;;
+		--device)
+		DEVICE=$2
+
+		[[ -z "$DEVICE" ]] && exit 1
+		
+		shift 2
+		;;
+		--output)
+		OUTPUT=$2
+
+		[[ -z "$OUTPUT" ]] && exit 1
+		
+		shift 2
+		;;
+		--image)
+		IMAGE=$2
+
+		[[ -z "$IMAGE" ]] && exit 1
+		
+		shift 2
+		;;
+		--verbose)
+		VERBOSE="yes"
+		shift 1
+		;;
+		--help)
+		manual
+		shift 1
+		;;
+		--version)
+		version
+		shift 1
+		;;
+		--*|-*|*)
+		manual
+		shift 1
+		;;
+	esac
+done
+else
+	manual
+fi

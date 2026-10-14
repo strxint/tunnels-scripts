@@ -1,0 +1,18 @@
+#!/bin/bash
+##################################################
+#                                                #
+#      Program that Wipes sys cached files       #
+#               (port from alpine)               #
+##################################################
+
+wipe() {
+
+  rm -rf $HOME/.bash_history /etc/arch-release* /tmp/pacman-cache/* /usr/share/git-gui/* /usr/share/makepkg* /usr/lib/python*/__pycache__/* /usr/lib/python*/test /usr/share/licenses/* /usr/share/hwdata/* /etc/*.pacnew /usr/share/perl5/* /usr/share/libwacom/* /usr/share/iana-etc/* /var/cache/pacman/pkg/* /var/lib/pacman/* ~/.i2pd/* /var/cache/apk/* /usr/share/tor/geoip6* /usr/lib/gconv* /usr/share/sounds/* /usr/share/aclocal/* /usr/share/xml/* /root/.serverauth.* /usr/share/man/* /usr/share/info/* /usr/share/doc/* /usr/share/gtk-doc/* /var/tmp/* /var/cache/* /var/log/* /var/lib/log/* /var/backups/* /var/crash/* /usr/share/locale/* /usr/share/help/* /usr/share/gnome/help/* $HOME/.w3m/* $HOME/.links/* $HOME/.wget* /etc/resolv.conf.* $HOME/.links >/dev/null 2>&1
+  find /usr/lib -type f -name "*.a" -delete >/dev/null 2>&1
+  find /usr/lib -type f -name "*.o" -delete >/dev/null 2>&1
+  find /usr/lib -type f -name "*.la" -delete >/dev/null 2>&1
+  dmesg -C >/dev/null 2>&1
+  depmod -a >/dev/null 2>&1
+
+}
+wipe
