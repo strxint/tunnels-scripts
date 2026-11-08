@@ -1,0 +1,315 @@
+#!/bin/bash
+
+################################################################################################################
+#                                                                                                              #
+# ANONYMOUS-DNS: Simple Tool for making DNS Anonymous via Firewall & Tor daemon (can resolve .onion).          #
+# CODED BY: archnon@protonmail.com                                                                             #
+#                                                                                                              #
+################################################################################################################
+####################################################################
+# Copyright (c) 2026 archnon@protonmail.com. All Rights Reserved.  #
+####################################################################
+
+##### Colors #####
+
+RED="\e[1;31m"
+
+GREEN="\e[1;32m"
+
+BLUE="\e[1;34m"
+
+P="\e[1;35m"
+
+YELLOW="\e[1;33m"
+
+ORANGE="\e[38;5;214m"
+
+WHITE="\e[1;37m"
+
+LB="\e[36m"
+
+NC="\e[0m"
+
+
+VERSION='4.0.0'
+COPYRIGHT='# Copyright (c) 2026 archnon@protonmail.com. All Rights Reserved.  #'
+OWNER='archnon@protonmail.com'
+REPO_CLEAR='https://github.com/strxint/tunnels-scripts'
+REPO_ONION='https://it7otdanqu7ktntxzm427cba6i53w6wlanlh23v5i3siqmos47pzhvyd.onion/strxint/tunnels-scripts'
+
+version(){
+echo -e "\n
+\e[96mProgram: \e[92m$0\e[0m
+
+\e[96mVersion: \e[92m$VERSION\e[0m
+
+\e[96mCopyright: \e[92m$COPYRIGHT\e[0m
+\e[96mOwner & mantainer: \e[92m$OWNER\e[0m
+
+\e[96mRepo Clearnet: \e[92m$REPO_CLEAR\e[0m
+\e[96mRepo Onion: \e[92m$REPO_ONION\e[0m\n"
+exit $?
+}
+
+##### Default Socks5 Address #####
+ADDR=127.0.0.1
+PORT=9150
+
+ADDR1=127.0.0.1
+PORT1=4447
+
+# Env
+
+VERBOSE="no"
+PROXY_MODE="tor"
+
+usage() {
+  echo -e "\n${RED}[${YELLOW}warn${RED}]${ORANGE} usage: ${P}neptune ${NC}<${GREEN}COMMAND${NC}> <${LB}URL${NC}>${NC}"
+  echo -e "\n${BLUE}[${YELLOW}1${BLUE}]${ORANGE} --url ${NC}<${P}url${NC}>: ${WHITE}Resolv url using default proxy addr: '$ADDR:$PORT'.${NC}"
+  echo -e "\n${BLUE}[${YELLOW}2${BLUE}]${ORANGE} --proxy ${NC}<${P}addr${NC}> <${P}url${NC}>: ${WHITE}Use specific proxy addr for resolve.${NC}"
+  
+  echo -e "\n${BLUE}[${YELLOW}3${BLUE}]${ORANGE} --set-dns ${NC}<${P}addr${NC}>: ${WHITE}Change universal dns address for an specific addr.${NC}"
+
+  echo -e "\n${BLUE}[${YELLOW}4${BLUE}]${ORANGE} --verbose: ${WHITE}Enable verbose output (for everything).${NC}"
+  echo -e "\n${BLUE}[${YELLOW}5${BLUE}]${ORANGE} --curl-params <'params'>: ${WHITE}Give specific curl additional params.${NC}"
+  echo -e "\n${BLUE}[${YELLOW}6${BLUE}]${ORANGE} --proxy-app \e[0m<\e[97mapp\e[0m>: ${WHITE}Load any app through proxy mode.${NC}" 
+
+  echo -e "\n${BLUE}[${YELLOW}7${BLUE}]${ORANGE} --help: ${WHITE}Print manual & exit.${NC}"
+  echo -e "\n${BLUE}[${YELLOW}8${BLUE}]${ORANGE} --version: ${WHITE}Print program info & exit.${NC}"
+
+  echo -ne "\n"
+
+exit $?
+}
+
+need=(e2fsprogs curl proxychains-ng)
+
+if ! command -v proxychains4 >/dev/null 2>&1; then
+  if [[ $(command -v apt) ]]; then
+    if ! apt install -y "${need[@]}"; then
+      echo -e "\n${RED}[${WHITE}X${RED}] Could not install: ${ORANGE}"${need[@]}"${NC}\n"
+      exit 1
+    fi
+  elif [[ $(command -v pacman) ]]; then
+    if ! pacman -Sy --noconfirm --needed --overwrite "*" "${need[@]}"; then
+      echo -e "\n${RED}[${WHITE}X${RED}] Could not install: ${ORANGE}"${need[@]}"${NC}\n"
+      exit 1
+    fi
+  elif [[ $(command -v dnf) ]]; then
+    if ! dnf install -y --allowerasing "${need[@]}"; then
+      echo -e "\n${RED}[${WHITE}X${RED}] Could not install: ${ORANGE}"${need[@]}"${NC}\n"
+      exit 1
+    fi
+  elif [[ $(command -v yum) ]]; then
+    if ! yum install -y "${need[@]}"; then
+      echo -e "\n${RED}[${WHITE}X${RED}] Could not install: ${ORANGE}"${need[@]}"${NC}\n"
+      exit 1
+    fi
+  elif [[ $(command -v xbps-install) ]]; then
+    if ! xbps-install -Sy -f -y "*" "${need[@]}"; then
+      echo -e "\n${RED}[${WHITE}X${RED}] Could not install: ${ORANGE}"${need[@]}"${NC}\n"
+      exit 1
+    fi
+  elif [[ $(command -v zypper) ]]; then
+    if ! zypper install "${need[@]}"; then
+      echo -e "\n${RED}[${WHITE}X${RED}] Could not install: ${ORANGE}"${need[@]}"${NC}\n"
+      exit 1
+    fi
+  elif [[ $(command -v apk) ]]; then
+    if ! apk add --no-cache "${need[@]}"; then
+      echo -e "\n${RED}[${WHITE}X${RED}] Could not install: ${ORANGE}"${need[@]}"${NC}\n"
+      exit 1
+    fi
+  elif [[ $(command -v emerge) ]]; then
+    if ! emerge -v --oneshot --keep-going "${need[@]}"; then
+      echo -e "\n${RED}[${WHITE}X${RED}] Could not install: ${ORANGE}"${need[@]}"${NC}\n"
+      exit 1
+    fi
+  else
+    echo -e "\n${RED}[${WHITE}X${RED}] Unsuported package manager, install: ${ORANGE}'"${need[@]}"'${NC}\n"
+    exit 1
+  fi
+fi
+
+echo -e "${BLUE}                                            "
+echo -e "${BLUE}                                            "
+echo -e "${BLUE}▄▄  ▄▄ ▄▄▄▄▄ ▄▄▄▄ ▄▄▄▄▄▄ ▄▄ ▄▄ ▄▄  ▄▄ ▄▄▄▄▄ "
+echo -e "${BLUE}███▄██ ██▄▄  ██▄█▀  ██   ██ ██ ███▄██ ██▄▄  "
+echo -e "${BLUE}██ ▀██ ██▄▄▄ ██     ██   ▀███▀ ██ ▀██ ██▄▄▄ "
+echo -e "${BLUE}                                            "
+echo -e "\n\e[97m[*] Developed By: \e[95marchnon@protonmail.com, @strxint\e[0m\n"
+
+
+if [[ $# -gt 0 ]]; then
+while [ $# -gt 0 ]; do
+  case $1 in
+  --url)
+    url=$2
+
+    if [ -z $url ]; then
+
+      echo -e "\n${RED}[${WHITE}X${RED}] Missing an url for resolve${NC}"
+      echo -e "\n${RED}[${YELLOW}warn${RED}]${ORANGE} usage: ${LB}neptune ${P}--url ${YELLOW}<${NC}url${YELLOW}>${NC}\n"
+      exit 1
+
+    else
+
+      PROXY_MODE=$PROXY_MODE
+
+      [[ $PROXY_MODE == "tor" ]] && DEF_ADDR="$ADDR:$PORT"
+	
+      [[ $PROXY_MODE == "i2pd" ]] && DEF_ADDR="$ADDR1:$PORT1"
+
+      SOCKS5="$DEF_ADDR"
+
+      echo -e "\n\e[94m[\e[93m!\e[94m]\e[92m Resolve: \e[93m'$url'\e[92m status ...\e[0m\n"
+      
+      sleep 1
+
+      echo -e "\n${BLUE}[${LB}OK${BLUE}]${P} Proxy Address: \e[93m$SOCKS5${NC}\n"
+      echo -e "\n${BLUE}[${LB}OK${BLUE}]${P} Proxy Mode: \e[93m$PROXY_MODE${NC}\n"
+
+      [[ $VERBOSE == "yes" ]] && cmd="curl --socks5-hostname $SOCKS5 --url $url -v -s"
+
+      [[ $VERBOSE == "no" ]] && cmd="curl --socks5-hostname $SOCKS5 --url $url -s"
+
+      ! [[ -z $CURL_PARAMS ]] && CMD="$cmd $CURL_PARAMS"
+
+      [[ -z $CURL_PARAMS ]] && CMD="$cmd"
+
+      echo -e "\n\e[96moutput ==>\e[0m $($CMD)\n" || echo -e "\n${RED}[${WHITE}X${RED}] Could not resolv: ${ORANGE}'$url'${NC}\n"
+    
+    fi
+
+    shift 2
+
+    ;;
+
+  --proxy)
+    PROXY_ADDR=$2
+    url=$3
+
+    if [[ -z $PROXY_ADDR || -z $url ]]; then
+
+      echo -e "\n${RED}[${WHITE}X${RED}] Missing proxy addr/url for resolve${NC}\n"
+      echo -e "\n${RED}[${YELLOW}warn${RED}]${ORANGE} usage: ${LB}neptune ${P}--proxy ${NC}<${BLUE}addr${NC}> <${BLUE}url${NC}>${NC}\n"
+      exit 1
+
+    else
+
+      PROXY=$PROXY_ADDR
+      PROXY_MODE="custom"
+
+      [[ $VERBOSE == "yes" ]] && cmd="curl --proxy $PROXY --url $url -v -s"
+
+      [[ $VERBOSE == "no" ]] && cmd="curl --proxy $PROXY --url $url -s"
+
+      ! [[ -z "$CURL_PARAMS" ]] && CMD="$cmd $CURL_PARAMS"
+
+      [[ -z "$CURL_PARAMS" ]] && CMD="$cmd"
+
+      echo -e "\n\e[94m[\e[93m!\e[94m]\e[92m Resolve: \e[93m'$url'\e[92m status ...\e[0m\n"
+      
+      sleep 1
+
+
+      echo -e "\n${BLUE}[${LB}OK${BLUE}]${P} Proxy Address: \e[93m$PROXY${NC}\n"
+      echo -e "\n${BLUE}[${LB}OK${BLUE}]${P} Proxy Mode: \e[93m$PROXY_MODE${NC}\n"
+                
+      echo -e "\n\e[96moutput ==>\e[0m $($CMD)\n" || echo -e "\n${RED}[${WHITE}X${RED}] Could not resolv: ${ORANGE}'$url'${NC}\n"
+    
+    fi
+
+    shift 3
+ 
+    ;;
+
+  --set-dns)
+    addr=$2
+
+    if ! [ -f /etc/resolv.conf ]; then
+      	  touch /etc/resolv.conf >/dev/null 2>&1
+    fi
+
+    if [ -z $addr ]; then
+      echo -e "\n${RED}[${WHITE}X${RED}] Missing the address to set, e.g: $ADDR${NC}\n"
+      echo -e "\n${RED}[${YELLOW}warn${RED}]${ORANGE} usage: ${LB}neptune ${BLUE}--set-dns ${YELLOW}<${BLUE}addr${YELLOW}>${NC}\n"
+      exit 1
+    else
+
+      chattr -i /etc/resolv.conf >/dev/null 2>&1
+      rm /etc/resolv.conf >/dev/null 2>&1
+      touch /etc/resolv.conf >/dev/null 2>&1
+
+      echo "nameserver $addr" | tee /etc/resolv.conf >/dev/null 2>&1 && echo -e "\n${BLUE}[${LB}OK${BLUE}]${P} New dns address: ${GREEN}$addr${NC}\n" || echo -e "\n${RED}[${WHITE}X${RED}] Could not set dns address${NC}\n"
+
+    fi
+
+    shift 2
+
+    ;;
+
+    --verbose)
+    VERBOSE="yes"
+    
+    shift 1
+    
+    ;;
+    
+    --curl-params)
+    CURL_PARAMS=$2
+
+    if [[ -z $CURL_PARAMS ]]; then
+	echo -e "\n\e[91mError: '--curl-params' without params.\e[0m\n"
+	exit 1
+    fi
+
+    shift 2
+
+    ;;
+
+    --proxy-app)
+    PROXY_APP=$2
+    
+    if [[ -z $PROXY_APP ]]; then
+	    echo -e "\n\e[91mError: '--proxy-app' without app\e[0m\n"
+	    exit 1
+    else
+	    proxychains4 "$PROXY_APP"
+	    exit $?
+    fi
+
+    shift 2
+
+    ;;
+
+    --version)
+    version
+    shift 1
+
+    ;;
+
+  --help)
+ 
+    usage
+
+    shift 1
+
+    ;;
+
+  --* | -* | *)
+
+    echo -e "\n\e[96moutput ==> \e[0m$(curl --socks5-hostname "$ADDR:$PORT" --url $1 -s)\n"
+
+    exit $?
+
+    shift 1
+
+    ;;
+
+  esac
+done
+
+else
+	usage
+fi
