@@ -1,8 +1,8 @@
 
 # ***Tunnels-scripts v4.0.0***
 
-**-> Make Linux Truly anonymous and other stuff with some user-friendly scripts <-**
-**note: this scripts are included builtin in my custom private operating system based in Arch Linux, get the image here: https://github.com/strxint/tunnels-release**
+**-> Privacy and anonymity focused scripts for Linux <-**
+**note: this scripts are included built-in in my custom private operating system based on Arch Linux(coming soon).**
 
 ## ***Features***
 
@@ -27,7 +27,6 @@
 
 - Firewall is root only, same with services.
 - Scripts will not support s6 for boot services.
-- Get my personal stuff like .zshrc, .shrc, here: https://github.com/strxint/tunnels-files
 
 ## ***Installation***
 
@@ -37,7 +36,7 @@ Clone repo
   git clone https://github.com/strxint/tunnels-scripts
 ```
 
-Get inside folder
+Get inside main folder
 
 ```bash
   cd tunnels-scripts
@@ -46,6 +45,7 @@ Get inside folder
 Ensure root and exec permissions
 
 ```bash
+  command -v bash || echo “missing bash, install it”
   sudo chmod +x * || doas chmod +x *
 ```
 
@@ -54,14 +54,6 @@ Run any script as root
 ```bash
   sudo ./archnon || doas ./archnon
 ```
-
-
-## ***Preview & Demo***
-
-![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/demo.png)
-![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/demo1.png)
-![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/demo2.png)
-![App Screenshot](https://github.com/strxint/tunnels-scripts/blob/main/demo3.png)
 
 ## ***License***
 [![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/licenses/) 
