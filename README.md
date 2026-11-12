@@ -2,7 +2,6 @@
 # ***Tunnels-scripts v4.0.0***
 
 **-> Privacy and anonymity focused scripts for Linux <-**
-**note: this scripts are included built-in in my custom private operating system based on Arch Linux(coming soon).**
 
 ## ***Features***
 
